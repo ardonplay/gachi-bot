@@ -20,14 +20,12 @@ class Bot(AsyncTeleBot):
 
         self.restrict_time = 1
 
-    async def check_message(self, message):
-        global chat_owner_id
+    async def message_finder(self, message, text):
         user_id = message.from_user.id
         if user_id not in self.users:
             self.users[user_id] = User()
-
         for i in self.bad_words:
-            if i in message.text.lower():
+            if i in text:
                 if i in self.users[user_id].stat:
                     self.users[user_id].stat[i] += 1
                 elif i not in self.users[user_id].stat:
@@ -43,34 +41,43 @@ class Bot(AsyncTeleBot):
                     await self.send_message(message.chat.id, "За такие слова я тебя сейчас в бан кину")
                     self.users[user_id].counter += 1
                 else:
-                    restrict_until = datetime.now() + timedelta(minutes=self.restrict_time)
-
-                    chat_administrators = await self.get_chat_administrators(message.chat.id)
-
-                    for chat_member in chat_administrators:
-                        if chat_member.status == "creator":
-                            chat_owner_id = chat_member.user.id
-                            break
-
-                    if chat_owner_id == user_id:
-                        await self.reply_to(message, "Господин, давайте не будем сквернословить?")
-                        self.users[user_id].counter = 0
-                        break
-
-                    await self.reply_to(message, "Ну ты дописался, посиди в бане минутку")
-
-                    chat_permissions = telebot.types.ChatPermissions()
-
-                    chat_permissions.can_send_messages = False
-
-                    try:
-                        await self.restrict_chat_member(message.chat.id, user_id,
-                                                        until_date=int(restrict_until.timestamp()),
-                                                        permissions=chat_permissions)
-                    except Exception:
-                        print("Ну, не смог!")
-                    self.users[user_id] = 0
+                    await self.ban(message)
                 break
+
+    async def ban(self, message) -> None:
+        chat_owner_id = 0
+        user_id = message.from_user.id
+        restrict_until = datetime.now() + timedelta(minutes=self.restrict_time)
+
+        chat_administrators = await self.get_chat_administrators(message.chat.id)
+
+        for chat_member in chat_administrators:
+            if chat_member.status == "creator":
+                chat_owner_id = chat_member.user.id
+                break
+
+        if chat_owner_id == user_id:
+            await self.reply_to(message, "Админер, давайте не будем сквернословить?")
+            self.users[user_id].counter = 0
+            return
+
+        await self.reply_to(message, "Ну ты дописался, посиди в бане минутку")
+
+        chat_permissions = telebot.types.ChatPermissions()
+
+        chat_permissions.can_send_messages = False
+
+        try:
+            await self.restrict_chat_member(message.chat.id, user_id,
+                                            until_date=int(restrict_until.timestamp()),
+                                            permissions=chat_permissions)
+        except Exception:
+            print("Ну, не смог!")
+        self.users[user_id] = 0
+
+    async def check_message(self, message):
+        text = message.text.lower()
+        await self.message_finder(message, text)
 
     async def handler_start(self, message):
         if message.chat.type == 'group' or message.chat.type == 'supergroup':
@@ -96,6 +103,10 @@ class Bot(AsyncTeleBot):
         @self.message_handler(content_types=['new_chat_members'])
         async def on_new_chat_members(message):
             await self.handler_start(message)
+
+        @self.message_handler(content_types=['photo'])
+        async def photo_handler(message):
+            await self.message_finder(message, message.caption)
 
         @self.message_handler(func=lambda message: True)
         async def check_all(message):
