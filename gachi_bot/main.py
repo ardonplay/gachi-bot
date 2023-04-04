@@ -28,10 +28,10 @@ class Bot(AsyncTeleBot):
 
         for i in self.bad_words:
             if i in message.text.lower():
-                if message.text.lower() in self.users[user_id].stat:
-                    self.users[user_id].stat[message.text.lower()] += 1
-                elif message.text.lower() not in self.users[user_id].stat:
-                    self.users[user_id].stat[message.text.lower()] = 1
+                if i in self.users[user_id].stat:
+                    self.users[user_id].stat[i] += 1
+                elif i not in self.users[user_id].stat:
+                    self.users[user_id].stat[i] = 1
                 if self.users[user_id].counter < 2:
                     await self.reply_to(message, "🤡")
                     self.users[user_id].counter += 1
