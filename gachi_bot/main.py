@@ -25,10 +25,10 @@ class Bot:
 
         for i in self.bad_words:
             if i in message.text.lower():
-                if self.users[user_id] < 4:
+                if self.users[user_id] < 2:
                     self.bot.reply_to(message, "🤡")
                     self.users[user_id] += 1
-                elif self.users[user_id] < 6:
+                elif self.users[user_id] < 3:
                     with open(os.path.realpath(os.path.dirname(__file__))+ "/assets/sticker.gif", "rb") as animation_file:
                         self.bot.send_animation(message.chat.id, animation_file, reply_to_message_id=message.message_id)
                     self.bot.send_message(message.chat.id, "За такие слова я тебя сейчас в бан кину")
