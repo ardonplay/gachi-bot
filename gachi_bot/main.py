@@ -43,6 +43,7 @@ class Bot:
                             break
                     if chat_owner_id == user_id:
                         self.bot.reply_to(message, "Господин, давайте не будем сквернословить?")
+                        self.users[user_id] = 0
                         break
                     self.bot.reply_to(message, "Ну ты дописался, посиди в бане 30 минут")
 
