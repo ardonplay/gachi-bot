@@ -46,7 +46,7 @@ class Bot:
                         self.bot.reply_to(message, "Господин, давайте не будем сквернословить?")
                         self.users[user_id] = 0
                         break
-                    self.bot.reply_to(message, "Ну ты дописался, посиди в бане 30 минут")
+                    self.bot.reply_to(message, "Ну ты дописался, посиди в бане минутку")
 
                     chat_permissions = telebot.types.ChatPermissions()
 
