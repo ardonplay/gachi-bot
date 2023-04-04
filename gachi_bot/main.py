@@ -6,6 +6,7 @@ import asyncio
 from telebot.async_telebot import AsyncTeleBot
 
 from gachi_bot.bad_words import bad_words
+from gachi_bot.user import User
 
 
 class Bot(AsyncTeleBot):
@@ -23,20 +24,24 @@ class Bot(AsyncTeleBot):
         global chat_owner_id
         user_id = message.from_user.id
         if user_id not in self.users:
-            self.users[user_id] = 0
+            self.users[user_id] = User()
 
         for i in self.bad_words:
             if i in message.text.lower():
-                if self.users[user_id] < 2:
+                if message.text.lower() in self.users[user_id].stat:
+                    self.users[user_id].stat[message.text.lower()] += 1
+                elif message.text.lower() not in self.users[user_id].stat:
+                    self.users[user_id].stat[message.text.lower()] = 1
+                if self.users[user_id].counter < 2:
                     await self.reply_to(message, "🤡")
-                    self.users[user_id] += 1
-                elif self.users[user_id] < 3:
+                    self.users[user_id].counter += 1
+                elif self.users[user_id].counter < 3:
                     with open(os.path.realpath(os.path.dirname(__file__)) + "/assets/sticker.gif",
                               "rb") as animation_file:
                         await self.send_animation(message.chat.id, animation_file,
                                                   reply_to_message_id=message.message_id)
                     await self.send_message(message.chat.id, "За такие слова я тебя сейчас в бан кину")
-                    self.users[user_id] += 1
+                    self.users[user_id].counter += 1
                 else:
                     restrict_until = datetime.now() + timedelta(minutes=self.restrict_time)
 
@@ -49,7 +54,7 @@ class Bot(AsyncTeleBot):
 
                     if chat_owner_id == user_id:
                         await self.reply_to(message, "Господин, давайте не будем сквернословить?")
-                        self.users[user_id] = 0
+                        self.users[user_id].counter = 0
                         break
 
                     await self.reply_to(message, "Ну ты дописался, посиди в бане минутку")
@@ -77,10 +82,17 @@ class Bot(AsyncTeleBot):
                                             " повода материться, а если вы будете это делать - придется сделать "
                                             "fisting ass...")
 
-    async def check_all(self, message):
-        await self.check_message(message)
+    async def get_user_stat(self, message):
+        if message.from_user.id in self.users:
+            await self.reply_to(message, self.users[message.from_user.id].stat)
+        else:
+            await self.reply_to(message, "А вы молодец, пока еще ничего!")
 
     async def run(self):
+        @self.message_handler(commands=['статистика'])
+        async def stat_handler(message):
+            await self.get_user_stat(message)
+
         @self.message_handler(content_types=['new_chat_members'])
         async def on_new_chat_members(message):
             await self.handler_start(message)
