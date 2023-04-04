@@ -8,7 +8,6 @@ from telebot.async_telebot import AsyncTeleBot
 from gachi_bot.bad_words import bad_words
 
 
-# Создаем новый класс Bot, который наследуется от класса telebot.AsyncTeleBot
 class Bot(AsyncTeleBot):
 
     def __init__(self, token):
@@ -47,26 +46,31 @@ class Bot(AsyncTeleBot):
                         if chat_member.status == "creator":
                             chat_owner_id = chat_member.user.id
                             break
+
                     if chat_owner_id == user_id:
                         await self.reply_to(message, "Господин, давайте не будем сквернословить?")
                         self.users[user_id] = 0
                         break
+
                     await self.reply_to(message, "Ну ты дописался, посиди в бане минутку")
 
                     chat_permissions = telebot.types.ChatPermissions()
 
                     chat_permissions.can_send_messages = False
 
-                    await self.restrict_chat_member(message.chat.id, user_id,
-                                                    until_date=int(restrict_until.timestamp()),
-                                                    permissions=chat_permissions)
+                    try:
+                        await self.restrict_chat_member(message.chat.id, user_id,
+                                                        until_date=int(restrict_until.timestamp()),
+                                                        permissions=chat_permissions)
+                    except Exception:
+                        print("Ну, не смог!")
                     self.users[user_id] = 0
                 break
 
     async def handler_start(self, message):
         if message.chat.type == 'group' or message.chat.type == 'supergroup':
             for user in message.new_chat_members:
-                if user.id == self.get_me().id:
+                if user.id == (await self.get_me()).id:
                     await self.send_message(message.chat.id,
                                             "Ну привет мои маленькие slaves, зовите меня своим dungeon masterом"
                                             ", я вам не дам"
@@ -77,12 +81,10 @@ class Bot(AsyncTeleBot):
         await self.check_message(message)
 
     async def run(self):
-        # Добавляем обработчик событий "new_chat_members"
         @self.message_handler(content_types=['new_chat_members'])
         async def on_new_chat_members(message):
             await self.handler_start(message)
 
-        # Добавляем обработчик для всех остальных сообщений
         @self.message_handler(func=lambda message: True)
         async def check_all(message):
             await self.check_message(message)
