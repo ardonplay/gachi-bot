@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "gachibot"
+version = "0.1.0"
+description = ""
+authors = ["Vladimir Moshchuk <ardonplay2@icloud.com>"]
+packages = [{include = "gachi_bot"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pytelegrambotapi = "^4.10.0"
+
+[tool.poetry.scripts]
+bot = "gachi_bot.main:app"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
