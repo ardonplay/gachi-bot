@@ -1,11 +1,14 @@
 import os
 from datetime import datetime, timedelta
+from typing import Optional, List
 
+import schedule
 import telebot
 import asyncio
 from telebot.async_telebot import AsyncTeleBot
 
 from gachi_bot.bad_words import bad_words
+from gachi_bot.stat_loader import stat_loader, stat_saver
 from gachi_bot.user import User
 
 
@@ -16,14 +19,14 @@ class Bot(AsyncTeleBot):
 
         self.bad_words = bad_words
 
-        self.users = {}
+        self.users = stat_loader()
 
         self.restrict_time = 1
 
     async def message_finder(self, message, text):
         user_id = message.from_user.id
         if user_id not in self.users:
-            self.users[user_id] = User()
+            self.users[user_id] = User(user_id=user_id, counter=0, stat={})
         for i in self.bad_words:
             if i in text:
                 if i in self.users[user_id].stat:
@@ -45,21 +48,16 @@ class Bot(AsyncTeleBot):
                 break
 
     async def ban(self, message) -> None:
-        chat_owner_id = 0
         user_id = message.from_user.id
         restrict_until = datetime.now() + timedelta(minutes=self.restrict_time)
 
         chat_administrators = await self.get_chat_administrators(message.chat.id)
 
-        for chat_member in chat_administrators:
-            if chat_member.status == "creator":
-                chat_owner_id = chat_member.user.id
-                break
-
-        if chat_owner_id == user_id:
-            await self.reply_to(message, "Админер, давайте не будем сквернословить?")
-            self.users[user_id].counter = 0
-            return
+        for administrator in chat_administrators:
+            if administrator.user.id == user_id:
+                await self.reply_to(message, "Товарищ админ, давайте не будем сквернословить?")
+                self.users[user_id].counter = 0
+                return
 
         await self.reply_to(message, "Ну ты дописался, посиди в бане минутку")
 
@@ -73,7 +71,7 @@ class Bot(AsyncTeleBot):
                                             permissions=chat_permissions)
         except Exception:
             print("Ну, не смог!")
-        self.users[user_id] = 0
+        self.users[user_id].counter = 0
 
     async def check_message(self, message):
         text = message.text.lower()
@@ -90,12 +88,20 @@ class Bot(AsyncTeleBot):
                                             "fisting ass...")
 
     async def get_user_stat(self, message):
-        if message.from_user.id in self.users:
+        if message.from_user.id not in self.users:
+            self.users[message.from_user.id] = User(user_id=message.from_user.id, stat={}, counter=0)
+        if len(self.users[message.from_user.id].stat) != 0:
             await self.reply_to(message, self.users[message.from_user.id].stat)
         else:
             await self.reply_to(message, "А вы молодец, пока еще ничего!")
 
+    async def save(self):
+        print("типа сохранил")
+        if len(self.users) != 0:
+            await stat_saver(self.users)
+
     async def run(self):
+
         @self.message_handler(commands=['статистика'])
         async def stat_handler(message):
             await self.get_user_stat(message)
@@ -113,6 +119,7 @@ class Bot(AsyncTeleBot):
             await self.check_message(message)
 
         await self.polling()
+        await self.save()
 
 
 def app():
