@@ -108,7 +108,7 @@ class Bot(AsyncTeleBot):
 
 
 def app():
-    bot = Bot("6212803918:AAGGTMFH000iKk3LY6fCX0mnCbD3YlT6b-8")
+    bot = Bot(os.getenv("gachi_bot_token"))
     loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(bot.run())
