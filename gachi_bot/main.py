@@ -8,6 +8,7 @@ import asyncio
 from telebot.async_telebot import AsyncTeleBot
 
 from gachi_bot.bad_words import bad_words
+from gachi_bot.message_utils import message_finder
 from gachi_bot.stat_loader import stat_loader, stat_saver
 from gachi_bot.user import User
 
@@ -24,28 +25,7 @@ class Bot(AsyncTeleBot):
         self.restrict_time = 1
 
     async def message_finder(self, message, text):
-        user_id = message.from_user.id
-        if user_id not in self.users:
-            self.users[user_id] = User(user_id=user_id, counter=0, stat={})
-        for i in self.bad_words:
-            if i in text:
-                if i in self.users[user_id].stat:
-                    self.users[user_id].stat[i] += 1
-                elif i not in self.users[user_id].stat:
-                    self.users[user_id].stat[i] = 1
-                if self.users[user_id].counter < 2:
-                    await self.reply_to(message, "🤡")
-                    self.users[user_id].counter += 1
-                elif self.users[user_id].counter < 3:
-                    with open(os.path.realpath(os.path.dirname(__file__)) + "/assets/sticker.gif",
-                              "rb") as animation_file:
-                        await self.send_animation(message.chat.id, animation_file,
-                                                  reply_to_message_id=message.message_id)
-                    await self.send_message(message.chat.id, "За такие слова я тебя сейчас в бан кину")
-                    self.users[user_id].counter += 1
-                else:
-                    await self.ban(message)
-                break
+        await message_finder(self, message, text)
 
     async def ban(self, message) -> None:
         user_id = message.from_user.id
@@ -95,10 +75,14 @@ class Bot(AsyncTeleBot):
         else:
             await self.reply_to(message, "А вы молодец, пока еще ничего!")
 
-    async def save(self):
-        print("типа сохранил")
-        if len(self.users) != 0:
-            await stat_saver(self.users)
+    async def save_stats_periodically(self):
+        schedule.every(1).minute.do(self.save)
+        while True:
+            await asyncio.sleep(1)
+            schedule.run_pending()
+
+    def save(self):
+        stat_saver(self.users)
 
     async def run(self):
 
@@ -118,14 +102,18 @@ class Bot(AsyncTeleBot):
         async def check_all(message):
             await self.check_message(message)
 
+        save_task = asyncio.create_task(self.save_stats_periodically())
         await self.polling()
-        await self.save()
+        save_task.cancel()
 
 
 def app():
     bot = Bot("6212803918:AAGGTMFH000iKk3LY6fCX0mnCbD3YlT6b-8")
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(bot.run())
+    try:
+        loop.run_until_complete(bot.run())
+    finally:
+        loop.close()
 
 
 if __name__ == '__main__':
