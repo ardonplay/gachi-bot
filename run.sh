@@ -1,4 +1,4 @@
 #!/bin/bash
 
 poetry install
-poetry run bot
+screen -d -m -S gachi_bot poetry run bot
