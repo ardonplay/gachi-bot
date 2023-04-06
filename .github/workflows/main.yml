@@ -1,23 +1,15 @@
-name: "Gachi_bot update"
+name: Run script on commit
+
 on:
   push:
-    branches: ["async"]
-  pull_request:
-    branches: ["async"]
-    
+    branches:
+      - async
+
 jobs:
-  run:
-    runs-on: self-hosted
+  run-script:
+    runs-on: ubuntu-latest
     steps:
-      - name: pull_updates 🛎
-        uses: ./
-        with:
-          command: git pull
-          working-directory: gachi_bot/gachi_bot
-      - name: run
-        uses: ./
-        with:
-          command: run.sh
-          working-directory: gachi_bot/gachi_bot
-        
-      
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run script
+        run: ./run.sh
