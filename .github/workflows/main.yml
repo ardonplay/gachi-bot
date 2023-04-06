@@ -1,0 +1,23 @@
+name: "Gachi_bot update"
+on:
+  push:
+    branches: ["async"]
+  pull_request:
+    branches: ["async"]
+    
+jobs:
+  run:
+    runs-on: self-hosted
+    steps:
+      - name: pull_updates 🛎
+        uses: ./
+        with:
+          command: git pull
+          working-directory: home/ardonplay/gachi_bot
+      - name: run
+        uses: ./
+        with:
+          command: run.sh
+          working-directory: home/ardonplay/gachi_bot
+        
+      
