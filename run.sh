@@ -1,4 +1,4 @@
 #!/bin/bash
 
-cd /root/ardonplay/gachi_bot/
+poetry install
 poetry run bot
