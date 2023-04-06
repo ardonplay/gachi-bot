@@ -84,11 +84,22 @@ class Bot(AsyncTeleBot):
     def save(self):
         stat_saver(self.users)
 
+    def add_new_word(self, message):
+        prompts = message.text.split()
+        if len(prompts) > 1:
+            self.bad_words.append(prompts[1])
+        else:
+            self.reply_to(message, "а слово хде?")
+
     async def run(self):
 
-        @self.message_handler(commands=['статистика'])
+        @self.message_handler(commands=['статистика', 'stat'])
         async def stat_handler(message):
             await self.get_user_stat(message)
+
+        @self.message_handler(commands=['add_new_bad_word'])
+        async def add_new_bad_word(message):
+            self.add_new_word(message)
 
         @self.message_handler(content_types=['new_chat_members'])
         async def on_new_chat_members(message):

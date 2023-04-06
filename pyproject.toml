@@ -6,7 +6,7 @@ authors = ["Vladimir Moshchuk <ardonplay2@icloud.com>"]
 packages = [{include = "gachi_bot"}]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 pytelegrambotapi = "^4.10.0"
 aiohttp = "^3.8.4"
 schedule = "^1.1.0"
