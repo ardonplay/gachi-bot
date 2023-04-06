@@ -8,6 +8,8 @@ on:
 jobs:
   run-script:
     runs-on: self-hosted
+    env:
+      gachi_bot_token: ${{ secrets.TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
