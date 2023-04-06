@@ -1,0 +1,15 @@
+name: Run script on commit
+
+on:
+  push:
+    branches:
+      - async
+
+jobs:
+  run-script:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run script
+        run: ./run.sh
