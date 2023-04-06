@@ -13,11 +13,11 @@ jobs:
         uses: ./
         with:
           command: git pull
-          working-directory: home/ardonplay/gachi_bot
+          working-directory: gachi_bot
       - name: run
         uses: ./
         with:
           command: run.sh
-          working-directory: home/ardonplay/gachi_bot
+          working-directory: gachi_bot
         
       
