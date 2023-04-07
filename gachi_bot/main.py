@@ -105,6 +105,11 @@ class Bot(AsyncTeleBot):
         async def on_new_chat_members(message):
             await self.handler_start(message)
 
+        @self.message_handler(
+            func=lambda message: message.text and '@' + (await self.get_me()).username in message.text)
+        def reply_to_mention(message):
+            self.reply_to(message, 'Вы упомянули меня!')
+
         @self.message_handler(content_types=['photo'])
         async def photo_handler(message):
             await self.message_finder(message, message.caption)
