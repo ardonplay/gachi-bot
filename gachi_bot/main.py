@@ -22,7 +22,6 @@ class Bot(AsyncTeleBot):
 
         self.users = stat_loader()
 
-
         self.restrict_time = 1
 
     async def message_finder(self, message, text):
@@ -101,6 +100,11 @@ class Bot(AsyncTeleBot):
         @self.message_handler(commands=['add_new_bad_word'])
         async def add_new_bad_word(message):
             self.add_new_word(message)
+
+        @self.message_handler(commands=['add_new_ignored_word'])
+        async def add_new_bad_word(message):
+            pass
+
 
         @self.message_handler(content_types=['new_chat_members'])
         async def on_new_chat_members(message):
