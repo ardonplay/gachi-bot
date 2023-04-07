@@ -103,8 +103,7 @@ class Bot(AsyncTeleBot):
 
         @self.message_handler(commands=['add_new_ignored_word'])
         async def add_new_bad_word(message):
-            pass
-
+            await self.reply_to(message, "пока еще не доделали...")
 
         @self.message_handler(content_types=['new_chat_members'])
         async def on_new_chat_members(message):
