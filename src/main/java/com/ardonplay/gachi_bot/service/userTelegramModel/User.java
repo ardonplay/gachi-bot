@@ -3,15 +3,18 @@ package com.ardonplay.gachi_bot.service.userTelegramModel;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+
+import lombok.Data;
 import org.springframework.stereotype.Component;
 
+import javax.swing.plaf.PanelUI;
+
 @Component
+@Data
 public  class User {
 
   public long user_id;
   public int counter;
-
-
   public Map<String, Integer> stat = new HashMap<>();
 
   @Override

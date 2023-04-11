@@ -1,6 +1,7 @@
 package com.ardonplay.gachi_bot.service;
 
 import com.ardonplay.gachi_bot.config.BotConfig;
+import com.ardonplay.gachi_bot.model.UserRepository;
 import com.ardonplay.gachi_bot.service.userTelegramModel.User;
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,6 +10,8 @@ import java.util.Map;
 import java.time.Duration;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendAnimation;
@@ -26,6 +29,8 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 @Component
 public class GachiBot extends TelegramLongPollingBot {
 
+  @Autowired
+  private UserRepository userRepository;
   final BotConfig config;
   Map<Long, User> users;
 
@@ -117,14 +122,21 @@ public class GachiBot extends TelegramLongPollingBot {
   }
 
   private void addUser(Message message) throws IOException {
-    User user = new User();
+    if (userRepository.findById(message.getFrom().getId()).isEmpty()){
+      var userId = message.getFrom().getId();
+      int counter = 0;
+      com.ardonplay.gachi_bot.model.User user = new com.ardonplay.gachi_bot
+              .model.User();
+      user.setUserID(userId);
+      user.setCounter(counter);
 
-    user.counter = 0;
+      User tempUser = new User();
+      tempUser.user_id = userId;
+      tempUser.counter = 0;
+      users.put(userId, tempUser);
 
-    user.user_id = message.getFrom().getId();
-
-    this.users.put(message.getFrom().getId(), user);
-    jsonParser.saveUsers();
+      userRepository.save(user);
+    }
   }
 
   private void addUserStat(String word, Message message) {
@@ -192,12 +204,10 @@ public class GachiBot extends TelegramLongPollingBot {
       Message message = update.getMessage();
 
       String text = message.getText();
-      if (!users.containsKey(message.getFrom().getId())){
-        try {
-          addUser(message);
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
+      try {
+        addUser(message);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
       }
 
       switch (text) {

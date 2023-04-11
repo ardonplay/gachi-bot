@@ -1,0 +1,22 @@
+version: '3.6'
+
+services:
+  # adminer:
+  #   image: adminer
+  #   restart: always
+  #   ports:
+  #     - 5454:8080
+    
+  db:
+    image: 'postgres:15.2'
+    container_name: bot_db
+    environment:
+      - DATABASE_HOST=127.0.0.1
+      - POSTGRES_USER=ardonplay
+      - POSTGRES_PASSWORD=314159
+      - POSTGRES_DB=bot_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/docker_postgres_init.sql
+     # - ./postgres-data:/var/lib/postgresql/data
