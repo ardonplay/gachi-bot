@@ -1,223 +1,119 @@
 package com.ardonplay.gachi_bot.service;
 
 import com.ardonplay.gachi_bot.config.BotConfig;
-import com.ardonplay.gachi_bot.model.UserRepository;
-import com.ardonplay.gachi_bot.service.userTelegramModel.User;
+import com.ardonplay.gachi_bot.repository.MatRepository;
+import com.ardonplay.gachi_bot.repository.UserRepository;
+import com.ardonplay.gachi_bot.model.User;
+import com.ardonplay.gachi_bot.service.BotServices.BotService;
+
 import java.io.IOException;
-import java.io.InputStream;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.time.Duration;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ExecutionException;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
-import org.telegram.telegrambots.meta.api.methods.send.SendAnimation;
-import org.telegram.telegrambots.meta.api.methods.groupadministration.RestrictChatMember;
 
 
-import org.telegram.telegrambots.meta.api.objects.ChatPermissions;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 
 import org.telegram.telegrambots.meta.api.objects.Message;
 
+
 @Component
+@Getter
+@Setter
 public class GachiBot extends TelegramLongPollingBot {
 
-  @Autowired
-  private UserRepository userRepository;
-  final BotConfig config;
-  Map<Long, User> users;
+    private final UserRepository userRepository;
+    private final MatRepository matRepository;
+    private final BotConfig config;
+    private final BotService botService;
 
-  List<String> bad_words;
+    private Map<Long, User> users;
+    private List<String> bad_words;
 
-  private final JsonParser jsonParser = new JsonParser();
 
-  public GachiBot(BotConfig config) {
-    super(config.getToken());
-    this.config = config;
-
-    this.users = jsonParser.getPersons();
-    this.bad_words = jsonParser.getBadWords();
-
-    Timer timer = new Timer();
-    TimerTask task = new TimerTask() {
-      @Override
-      public void run() {
-        try {
-          jsonParser.saveUsers();
-        } catch (IOException e) {
-          throw new RuntimeException(e);
+    @Autowired
+    public GachiBot(UserRepository userRepository, MatRepository matRepository, BotConfig config) {
+        super(config.getToken());
+        this.userRepository = userRepository;
+        this.matRepository = matRepository;
+        this.config = config;
+        this.botService = new BotService(this);
+        this.users = new LinkedHashMap<>();
+        for (User user : userRepository.findAll()) {
+            this.users.put(user.getUserID(), user);
         }
-      }
-    };
+        JsonParser jsonParser = new JsonParser();
+        this.bad_words = jsonParser.getBadWords();
 
-    timer.schedule(task, 0L, 10*60 * 1000L);
-  }
+        Timer timer = new Timer();
+        TimerTask task = new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    botService.saveUsers();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
 
-  public void sendMessage(String text, Message message) {
-    String chatId = message.getChatId().toString();
-    SendMessage sendMessage = new SendMessage();
-
-    sendMessage.setChatId(chatId);
-    sendMessage.setText(text);
-    try {
-      execute(sendMessage);
-    } catch (TelegramApiException e) {
-      System.out.println(e.getMessage());
-    }
-  }
-
-  public void sendDocument(String path, Message message) {
-    InputStream inputStream = getClass().getResourceAsStream(path);
-    InputFile inputFile = new InputFile(inputStream, path);
-
-    SendAnimation sendAnimation = new SendAnimation();
-
-    sendAnimation.setChatId(message.getChatId());
-    sendAnimation.setReplyToMessageId(message.getMessageId());
-
-    sendAnimation.setAnimation(inputFile);
-
-    try {
-      execute(sendAnimation);
-    } catch (TelegramApiException e) {
-      System.out.println(e.getMessage());
+        timer.schedule(task, 0L, 300000L);
     }
 
-  }
-
-  public void changeCounter(long id, int counter) {
-    users.get(id).counter = counter;
-  }
-
-  public void iterCounter(long id) {
-    users.get(id).counter += 1;
-  }
-
-
-  public void restrictUser(String chatId, long userId) {
-    ChatPermissions chatPermissions = new ChatPermissions();
-    chatPermissions.setCanSendMessages(false);
-    chatPermissions.setCanSendPolls(false);
-    chatPermissions.setCanSendOtherMessages(false);
-    chatPermissions.setCanAddWebPagePreviews(false);
-
-    RestrictChatMember restrictChatMember = new RestrictChatMember();
-    restrictChatMember.setChatId(chatId);
-    restrictChatMember.setUserId(userId);
-    restrictChatMember.forTimePeriodDuration(Duration.ofMinutes(1));
-    restrictChatMember.setPermissions(chatPermissions);
-
-    try {
-      execute(restrictChatMember);
-    } catch (TelegramApiException e) {
-      e.printStackTrace();
+    @Override
+    public String getBotUsername() {
+        return config.getName();
     }
-  }
 
-  private void addUser(Message message) throws IOException {
-    if (userRepository.findById(message.getFrom().getId()).isEmpty()){
-      var userId = message.getFrom().getId();
-      int counter = 0;
-      com.ardonplay.gachi_bot.model.User user = new com.ardonplay.gachi_bot
-              .model.User();
-      user.setUserID(userId);
-      user.setCounter(counter);
 
-      User tempUser = new User();
-      tempUser.user_id = userId;
-      tempUser.counter = 0;
-      users.put(userId, tempUser);
+    @Override
+    public void onUpdateReceived(Update update) {
+        if (update.hasMessage() && update.getMessage().hasText()) {
+            Message message = update.getMessage();
 
-      userRepository.save(user);
-    }
-  }
+            String text = message.getText();
+            try {
+                botService.addUser(message);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
 
-  private void addUserStat(String word, Message message) {
-    if (users.get(message.getFrom().getId()).stat.containsKey(word)) {
-      User user = this.users.get(message.getFrom().getId());
-      int count = user.stat.get(word);
-      user.stat.put(word, count + 1);
-    }
-    else {
-      User user = this.users.get(message.getFrom().getId());
-      user.stat.put(word, 1);
-    }
-  }
+            switch (text) {
+                case "/help" -> botService.sendMessageWithReply("Привет, я клоун!", message);
+                case "/stat", "/статистика" -> botService.sendStat(message);
+                case "@ardonplay_gachi_bot" -> botService.sendMessageWithReply("Да жив я, жив!", message);
+                case "/rocket" -> botService.sendSticker(config.getStickers().get("rocket"), message);
+                default -> botService.check_bad_word(text, message);
+            }
+        } else if (update.hasMessage() && update.getMessage().getNewChatMembers() != null) {
+            Message message = update.getMessage();
 
-  public void check_bad_word(String text, Message message) {
-    for (String str : bad_words) {
-      if (text.contains(str)) {
-        addUserStat(str, message);
-        iterCounter(message.getFrom().getId());
-        switch (users.get(message.getFrom().getId()).counter) {
-          case 0, 1, 2 -> sendMessageWithReply("🤡", message);
-          case 3 -> {
-            iterCounter(message.getFrom().getId());
-            sendDocument("/gifs/sticker.gif", message);
-            sendMessage("За такие слова я тебя сейчас в бан кину", message);
-          }
-          default -> {
-            changeCounter(message.getFrom().getId(), 0);
-            restrictUser(message.getChatId().toString(), message.getFrom().getId());
-            sendMessageWithReply("Ну ты дописался, посиди в бане минутку", message);
-          }
+            try {
+                Long botID = getMeAsync().get().getId();
+                for (var user : message.getNewChatMembers()) {
+                    if (user.getId().equals(botID)) {
+                        botService.sendMessage("Ну привет мои маленькие slaves," +
+                                " зовите меня своим dungeon masterом, " +
+                                "я вам не дам повода материться," +
+                                " а если вы будете это делать - придется " +
+                                "сделать fisting ass...", message);
+                    }
+                }
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+
+
         }
-      }
     }
-  }
-
-  public void sendStat(Message message) {
-
-    sendMessageWithReply(users.get(message.getFrom().getId()).stat.toString(), message);
-  }
-
-  @Override
-  public String getBotUsername() {
-    return config.getName();
-  }
-
-
-  public void sendMessageWithReply(String text, Message message) {
-    String chatId = message.getChatId().toString();
-    SendMessage sendMessage = new SendMessage();
-
-    sendMessage.setChatId(chatId);
-    sendMessage.setReplyToMessageId(message.getMessageId());
-    sendMessage.setText(text);
-    try {
-      execute(sendMessage);
-    } catch (TelegramApiException e) {
-      System.out.println(e.getMessage());
-    }
-  }
-
-  @Override
-  public void onUpdateReceived(Update update) {
-    if (update.hasMessage() && update.getMessage().hasText()) {
-      Message message = update.getMessage();
-
-      String text = message.getText();
-      try {
-        addUser(message);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-
-      switch (text) {
-        case "/help" -> sendMessageWithReply("Привет, я клоун!", message);
-        case "/stat", "/статистика" -> sendStat(message);
-        case "@ardonplay_gachi_bot" -> sendMessageWithReply("Да жив я, жив!", message);
-
-        default -> check_bad_word(text, message);
-      }
-    }
-  }
 }
 

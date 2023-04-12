@@ -11,3 +11,5 @@ CREATE TABLE "mats" (
 );
 
 ALTER TABLE "mats" ADD FOREIGN KEY ("user_id") REFERENCES "user" ("id");
+ALTER TABLE "mats" ADD CONSTRAINT unique_email_per_username UNIQUE (user_id, word);
+ALTER TABLE "user" ALTER COLUMN id DROP IDENTITY ;
