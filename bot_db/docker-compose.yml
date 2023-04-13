@@ -18,5 +18,6 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/docker_postgres_init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/1.sql
+      - ./add_bad_words.sql:/docker-entrypoint-initdb.d/2.sql
      # - ./postgres-data:/var/lib/postgresql/data

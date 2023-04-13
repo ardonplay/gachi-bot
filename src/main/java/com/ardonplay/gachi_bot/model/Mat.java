@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 
+import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -35,5 +36,21 @@ public class Mat {
 
   public Mat(){}
 
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Mat mat = (Mat) o;
+    return count == mat.count && Objects.equals(word, mat.word)
+        && Objects.equals(user, mat.user);
+  }
 
+  @Override
+  public int hashCode() {
+    return Objects.hash(word, count, user);
+  }
 }

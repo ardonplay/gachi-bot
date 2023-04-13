@@ -11,6 +11,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -32,4 +33,21 @@ public class User {
     public User() {
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        User user = (User) o;
+        return counter == user.counter && Objects.equals(userID, user.userID)
+            && Objects.equals(mats, user.mats);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(userID, counter, mats);
+    }
 }

@@ -1,5 +1,6 @@
 package com.ardonplay.gachi_bot.service.BotServices;
 
+import com.ardonplay.gachi_bot.model.User;
 import com.ardonplay.gachi_bot.service.GachiBot;
 
 import java.io.IOException;
@@ -106,8 +107,15 @@ public class Messagies {
     }
 
     public void sendStat(Message message) {
-        List<String> stat = bot.getUsers().get(message.getFrom().getId()).getMats().stream().map(mat -> mat.getWord() + "=" + mat.getCount()).toList();
+        User user = bot.getUsers().get(message.getFrom().getId());
+        if (user.getMats() == null || user.getMats().size() == 0){
+            sendMessageWithReply("Ого, а вы даже не матерились, пока что)", message);
+        }
+        else {
+            List<String> stat = bot.getUsers().get(message.getFrom().getId()).getMats().stream()
+                .map(mat -> mat.getWord() + "=" + mat.getCount()).toList();
 
-        stringLimiter(stat).forEach(s -> sendMessageWithReply(s, message));
+            stringLimiter(stat).forEach(s -> sendMessageWithReply(s, message));
+        }
     }
 }

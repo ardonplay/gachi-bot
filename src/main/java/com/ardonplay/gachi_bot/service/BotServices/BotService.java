@@ -1,12 +1,15 @@
 package com.ardonplay.gachi_bot.service.BotServices;
 
+import com.ardonplay.gachi_bot.model.BadWord;
 import com.ardonplay.gachi_bot.model.Mat;
 import com.ardonplay.gachi_bot.model.User;
+import com.ardonplay.gachi_bot.model.WhiteWord;
 import com.ardonplay.gachi_bot.service.GachiBot;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 
+import java.util.stream.StreamSupport;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.RestrictChatMember;
 import org.telegram.telegrambots.meta.api.objects.ChatPermissions;
@@ -21,6 +24,7 @@ public class BotService {
   final private Messagies messagies;
 
   final private DbController dbController;
+
   public BotService(GachiBot bot) {
     this.bot = bot;
     this.messagies = new Messagies(bot);
@@ -39,16 +43,17 @@ public class BotService {
     messagies.sendDocument(path, message);
   }
 
-  public void sendStat(Message message){
+  public void sendStat(Message message) {
     messagies.sendStat(message);
   }
-  public void sendSticker(String sticker, Message message){
+
+  public void sendSticker(String sticker, Message message) {
     messagies.sendSticker(sticker, message);
   }
 
-  private void counterSwitcher(Message message){
+  private void counterSwitcher(Message message) {
     switch (bot.getUsers().get(message.getFrom().getId()).getCounter()) {
-      case 0, 1, 2 -> sendMessageWithReply( "🤡", message);
+      case 0, 1, 2 -> sendMessageWithReply("🤡", message);
       case 3 -> {
         iterCounter(message.getFrom().getId());
         sendSticker(bot.getConfig().getStickers().get("billy"), message);
@@ -65,18 +70,22 @@ public class BotService {
   public void check_bad_word(String text, Message message) {
     int predCounter = bot.getUsers().get(message.getFrom().getId()).getCounter();
     List<String> words = List.of(text.split(" "));
-    System.out.println(words);
-
-    for (String str : bot.getBadWords()) {
-      for (String word: words){
-        if(word.contains(str) && !bot.getWhiteWords().contains(word)){
+    List<String> badWords  =  StreamSupport.stream(bot.getBadWordRepository()
+            .findAll()
+            .spliterator(), false)
+            .map(BadWord::getWord).toList();
+    for (String str : badWords) {
+      for (String word : words) {
+        if (word.contains(str) && !bot.getWhiteWordRepository().existsByWord(str)) {
           addUserStat(str, message);
           iterCounter(message.getFrom().getId());
         }
       }
     }
-    if(predCounter != bot.getUsers().get(message.getFrom().getId()).getCounter())
+    if (predCounter != bot.getUsers().get(message.getFrom().getId()).getCounter()) {
       counterSwitcher(message);
+      saveUser(bot.getUsers().get(message.getFrom().getId()));
+    }
   }
 
   private void addUserStat(String word, Message message) {
@@ -93,8 +102,7 @@ public class BotService {
           matershina.setWord(word);
           user.getMats().add(matershina);
         });
-      }
-      else {
+      } else {
         user.setMats(new LinkedList<>());
       }
     } catch (NullPointerException e) {
@@ -153,24 +161,23 @@ public class BotService {
     dbController.saveUsers();
   }
 
-  public boolean isCommand(String text){
-
-    return false;
+  public void saveUser(User user){
+    dbController.saveUser(user);
   }
+
   public void addWhiteWord(Message message, String text) throws IOException {
     List<String> words = List.of(text.split(" "));
-    for(String word: words){
-      if (!bot.getBadWords().contains(word)){
-        bot.getWhiteWords().add(word);
-      }else {
-        sendMessageWithReply("слово " + word + "уже в черном списке!", message);
+    for (String word : words) {
+      if (!bot.getBadWordRepository().existsByWord(word) && !bot.getWhiteWordRepository()
+          .existsByWord(word)) {
+        bot.getWhiteWordRepository().save(new WhiteWord(word));
+      } else {
+        sendMessageWithReply("слово " + word + " уже в черном списке!", message);
       }
     }
-    JsonParser jsonParser = new JsonParser();
-
-    jsonParser.saveWhiteWords(bot.getWhiteWords());
   }
 
   public void addBadWord(Message message, String text) {
+
   }
 }

@@ -1,14 +1,15 @@
 package com.ardonplay.gachi_bot.service;
 
 import com.ardonplay.gachi_bot.config.BotConfig;
+import com.ardonplay.gachi_bot.repository.BadWordRepository;
 import com.ardonplay.gachi_bot.repository.MatRepository;
 import com.ardonplay.gachi_bot.repository.UserRepository;
 import com.ardonplay.gachi_bot.model.User;
+import com.ardonplay.gachi_bot.repository.WhiteWordRepository;
 import com.ardonplay.gachi_bot.service.BotServices.BotService;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -16,7 +17,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.ardonplay.gachi_bot.service.BotServices.JsonParser;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,30 +36,28 @@ public class GachiBot extends TelegramLongPollingBot {
 
     private final UserRepository userRepository;
     private final MatRepository matRepository;
+    private final BadWordRepository badWordRepository;
+    private final WhiteWordRepository whiteWordRepository;
     private final BotConfig config;
     private final BotService botService;
 
     private Map<Long, User> users;
-    private List<String> badWords;
-    private List<String> whiteWords;
 
 
     @Autowired
-    public GachiBot(UserRepository userRepository, MatRepository matRepository, BotConfig config) {
+    public GachiBot(UserRepository userRepository, MatRepository matRepository,
+        BadWordRepository badWordRepository, WhiteWordRepository whiteWordRepository, BotConfig config) {
         super(config.getToken());
         this.userRepository = userRepository;
         this.matRepository = matRepository;
+        this.badWordRepository = badWordRepository;
+        this.whiteWordRepository = whiteWordRepository;
         this.config = config;
         this.botService = new BotService(this);
         this.users = new LinkedHashMap<>();
         for (User user : userRepository.findAll()) {
             this.users.put(user.getUserID(), user);
         }
-        JsonParser jsonParser = new JsonParser();
-
-        this.badWords = jsonParser.getBadWords();
-
-        this.whiteWords = jsonParser.getWhiteList();
 
         Timer timer = new Timer();
         TimerTask task = new TimerTask() {
@@ -104,7 +102,6 @@ public class GachiBot extends TelegramLongPollingBot {
                     case "/stat" -> botService.sendStat(message);
                     case "/addwhiteword" -> {
                         try {
-                            System.out.println("да");
                             botService.addWhiteWord(message, text);
                         } catch (IOException e) {
                             throw new RuntimeException(e);
