@@ -5,11 +5,14 @@ import com.ardonplay.gachi_bot.model.Mat;
 import com.ardonplay.gachi_bot.model.User;
 import com.ardonplay.gachi_bot.model.WhiteWord;
 import com.ardonplay.gachi_bot.service.GachiBot;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 
 import java.util.stream.StreamSupport;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.RestrictChatMember;
 import org.telegram.telegrambots.meta.api.objects.ChatPermissions;
@@ -19,165 +22,93 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 @Component
 public class BotService {
 
-  final private GachiBot bot;
+    final private GachiBot bot;
 
-  final private Messagies messagies;
+    final private Messagies messagies;
 
-  final private DbController dbController;
+    final private BadWordsHandler badWordsHandler;
 
-  public BotService(GachiBot bot) {
-    this.bot = bot;
-    this.messagies = new Messagies(bot);
-    this.dbController = new DbController(bot);
-  }
+    final private UserHandler userHandler;
 
-  public void sendMessageWithReply(String text, Message message) {
-    messagies.sendMessageWithReply(text, message);
-  }
 
-  public void sendMessage(String text, Message message) {
-    messagies.sendMessage(text, message);
-  }
+    final private DbController dbController;
 
-  public void sendDocument(String path, Message message) {
-    messagies.sendDocument(path, message);
-  }
-
-  public void sendStat(Message message) {
-    messagies.sendStat(message);
-  }
-
-  public void sendSticker(String sticker, Message message) {
-    messagies.sendSticker(sticker, message);
-  }
-
-  private void counterSwitcher(Message message) {
-    switch (bot.getUsers().get(message.getFrom().getId()).getCounter()) {
-      case 0, 1, 2 -> sendMessageWithReply("🤡", message);
-      case 3 -> {
-        iterCounter(message.getFrom().getId());
-        sendSticker(bot.getConfig().getStickers().get("billy"), message);
-        sendMessage("За такие слова я тебя сейчас в бан кину", message);
-      }
-      default -> {
-        changeCounter(message.getFrom().getId(), 0);
-        restrictUser(message.getChatId().toString(), message.getFrom().getId());
-        sendMessageWithReply("Ну ты дописался, посиди в бане минутку", message);
-      }
+    public BotService(GachiBot bot) {
+        this.bot = bot;
+        this.messagies = new Messagies(bot);
+        this.dbController = new DbController(bot);
+        this.userHandler = new UserHandler(bot);
+        this.badWordsHandler = new BadWordsHandler(bot, userHandler, dbController, messagies);
     }
-  }
 
-  public void check_bad_word(String text, Message message) {
-    int predCounter = bot.getUsers().get(message.getFrom().getId()).getCounter();
-    List<String> words = List.of(text.split(" "));
-    List<String> badWords  =  StreamSupport.stream(bot.getBadWordRepository()
-            .findAll()
-            .spliterator(), false)
-            .map(BadWord::getWord).toList();
-    for (String str : badWords) {
-      for (String word : words) {
-        if (word.contains(str) && !bot.getWhiteWordRepository().existsByWord(str)) {
-          addUserStat(str, message);
-          iterCounter(message.getFrom().getId());
+    public void sendMessageWithReply(String text, Message message) {
+        messagies.sendMessageWithReply(text, message);
+    }
+
+    public void sendMessage(String text, Message message) {
+        messagies.sendMessage(text, message);
+    }
+
+    public void sendDocument(String path, Message message) {
+        messagies.sendDocument(path, message);
+    }
+
+    public void sendStat(Message message) {
+        messagies.sendStat(message);
+    }
+
+    public void sendSticker(String sticker, Message message) {
+        messagies.sendSticker(sticker, message);
+    }
+
+
+
+    public void check_bad_word(String text, Message message) {
+       badWordsHandler.check_bad_word(text, message);
+    }
+
+    private void addUserStat(String word, Message message) {
+        userHandler.addUserStat(word, message);
+    }
+
+    public void changeCounter(long id, int counter) {
+        badWordsHandler.changeCounter(id, counter);
+    }
+
+    public void iterCounter(long id) {
+        badWordsHandler.iterCounter(id);
+    }
+
+
+    public void restrictUser(String chatId, long userId) {
+        userHandler.restrictUser(chatId, userId);
+    }
+
+    public void addUser(Message message) throws IOException {
+        userHandler.addUser(message);
+    }
+
+    public void saveUsers() throws IOException {
+        dbController.saveUsers();
+    }
+
+    public void saveUser(User user) {
+        dbController.saveUser(user);
+    }
+
+    public void addWhiteWord(Message message, String text) throws IOException {
+        List<String> words = List.of(text.split(" "));
+        for (String word : words) {
+            if (!bot.getBadWordRepository().existsByWord(word) && !bot.getWhiteWordRepository()
+                    .existsByWord(word)) {
+                bot.getWhiteWordRepository().save(new WhiteWord(word));
+            } else {
+                sendMessageWithReply("слово " + word + " уже в черном списке!", message);
+            }
         }
-      }
     }
-    if (predCounter != bot.getUsers().get(message.getFrom().getId()).getCounter()) {
-      counterSwitcher(message);
-      saveUser(bot.getUsers().get(message.getFrom().getId()));
+
+    public void addBadWord(Message message, String text) {
+
     }
-  }
-
-  private void addUserStat(String word, Message message) {
-
-    User user = bot.getUsers().get(message.getFrom().getId());
-    try {
-      if (user.getMats() != null) {
-        Optional<Mat> mat = user.getMats().stream()
-            .filter(mater -> Objects.equals(mater.getWord(), word)).findAny();
-
-        mat.ifPresentOrElse(value -> value.setCount(value.getCount() + 1), () -> {
-          Mat matershina = new Mat();
-          matershina.setCount(1);
-          matershina.setWord(word);
-          user.getMats().add(matershina);
-        });
-      } else {
-        user.setMats(new LinkedList<>());
-      }
-    } catch (NullPointerException e) {
-      e.printStackTrace();
-    }
-  }
-
-  public void changeCounter(long id, int counter) {
-    bot.getUsers().get(id).setCounter(counter);
-  }
-
-  public void iterCounter(long id) {
-    bot.getUsers().get(id).setCounter(bot.getUsers().get(id).getCounter() + 1);
-  }
-
-
-  public void restrictUser(String chatId, long userId) {
-    ChatPermissions chatPermissions = new ChatPermissions();
-    chatPermissions.setCanSendMessages(false);
-    chatPermissions.setCanSendPolls(false);
-    chatPermissions.setCanSendOtherMessages(false);
-    chatPermissions.setCanAddWebPagePreviews(false);
-
-    RestrictChatMember restrictChatMember = new RestrictChatMember();
-    restrictChatMember.setChatId(chatId);
-    restrictChatMember.setUserId(userId);
-    restrictChatMember.forTimePeriodDuration(Duration.ofMinutes(1));
-    restrictChatMember.setPermissions(chatPermissions);
-
-    try {
-      bot.execute(restrictChatMember);
-    } catch (TelegramApiException e) {
-      e.printStackTrace();
-    }
-  }
-
-  public void addUser(Message message) throws IOException {
-
-    if (!bot.getUsers().containsKey(message.getFrom().getId())) {
-      if (bot.getUserRepository().findById(message.getFrom().getId()).isEmpty()) {
-        var userId = message.getFrom().getId();
-        int counter = 0;
-        com.ardonplay.gachi_bot.model.User user = new com.ardonplay.gachi_bot
-            .model.User();
-        user.setUserID(userId);
-        user.setCounter(counter);
-
-        bot.getUsers().put(userId, user);
-
-        bot.getUserRepository().save(user);
-      }
-    }
-  }
-
-  public void saveUsers() throws IOException {
-    dbController.saveUsers();
-  }
-
-  public void saveUser(User user){
-    dbController.saveUser(user);
-  }
-
-  public void addWhiteWord(Message message, String text) throws IOException {
-    List<String> words = List.of(text.split(" "));
-    for (String word : words) {
-      if (!bot.getBadWordRepository().existsByWord(word) && !bot.getWhiteWordRepository()
-          .existsByWord(word)) {
-        bot.getWhiteWordRepository().save(new WhiteWord(word));
-      } else {
-        sendMessageWithReply("слово " + word + " уже в черном списке!", message);
-      }
-    }
-  }
-
-  public void addBadWord(Message message, String text) {
-
-  }
 }

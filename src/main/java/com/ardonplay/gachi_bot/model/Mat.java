@@ -1,14 +1,6 @@
 package com.ardonplay.gachi_bot.model;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.*;
 
 import java.util.Objects;
 import lombok.Getter;
@@ -17,6 +9,7 @@ import lombok.Setter;
 @Entity(name = "mats")
 @Getter
 @Setter
+@Table(uniqueConstraints={@UniqueConstraint(name = "unique_email_per_username", columnNames={"user_id", "word"})})
 public class Mat {
 
   @Id
@@ -30,7 +23,7 @@ public class Mat {
   @Column(name = "count")
   private int count;
 
-  @ManyToOne(fetch = FetchType.EAGER,  cascade = CascadeType.ALL)
+  @ManyToOne(fetch = FetchType.EAGER,  cascade = CascadeType.MERGE)
   @JoinColumn(name = "user_id", referencedColumnName = "id")
   private User user;
 
