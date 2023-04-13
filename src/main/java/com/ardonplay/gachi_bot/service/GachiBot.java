@@ -13,7 +13,10 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import com.ardonplay.gachi_bot.service.BotServices.JsonParser;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +40,8 @@ public class GachiBot extends TelegramLongPollingBot {
     private final BotService botService;
 
     private Map<Long, User> users;
-    private List<String> bad_words;
+    private List<String> badWords;
+    private List<String> whiteWords;
 
 
     @Autowired
@@ -52,7 +56,10 @@ public class GachiBot extends TelegramLongPollingBot {
             this.users.put(user.getUserID(), user);
         }
         JsonParser jsonParser = new JsonParser();
-        this.bad_words = jsonParser.getBadWords();
+
+        this.badWords = jsonParser.getBadWords();
+
+        this.whiteWords = jsonParser.getWhiteList();
 
         Timer timer = new Timer();
         TimerTask task = new TimerTask() {
@@ -80,19 +87,40 @@ public class GachiBot extends TelegramLongPollingBot {
         if (update.hasMessage() && update.getMessage().hasText()) {
             Message message = update.getMessage();
 
-            String text = message.getText();
+            String text = message.getText().toLowerCase();
             try {
                 botService.addUser(message);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
 
-            switch (text) {
-                case "/help" -> botService.sendMessageWithReply("Привет, я клоун!", message);
-                case "/stat", "/статистика" -> botService.sendStat(message);
-                case "@ardonplay_gachi_bot" -> botService.sendMessageWithReply("Да жив я, жив!", message);
-                case "/rocket" -> botService.sendSticker(config.getStickers().get("rocket"), message);
-                default -> botService.check_bad_word(text, message);
+            Pattern pattern = Pattern.compile("/\\b[a-z]+");
+            Matcher matcher = pattern.matcher(text);
+
+            if (matcher.find()){
+                String match = matcher.group();
+                switch (match){
+                    case "/help" -> botService.sendMessageWithReply("Привет, я клоун!", message);
+                    case "/stat" -> botService.sendStat(message);
+                    case "/addwhiteword" -> {
+                        try {
+                            System.out.println("да");
+                            botService.addWhiteWord(message, text);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    case "/add_bad_word" -> botService.addBadWord(message, text);
+                    case "/rocket" -> botService.sendSticker(config.getStickers().get("rocket"), message);
+                }
+            }
+            else {
+                if (text.equals("@ardonplay_gachi_bot")) {
+                    botService.sendMessageWithReply("Да жив я, жив!", message);
+                } else {
+                    botService.check_bad_word(text, message);
+                }
+
             }
         } else if (update.hasMessage() && update.getMessage().getNewChatMembers() != null) {
             Message message = update.getMessage();

@@ -5,10 +5,8 @@ import com.ardonplay.gachi_bot.model.User;
 import com.ardonplay.gachi_bot.service.GachiBot;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.RestrictChatMember;
 import org.telegram.telegrambots.meta.api.objects.ChatPermissions;
@@ -23,7 +21,6 @@ public class BotService {
   final private Messagies messagies;
 
   final private DbController dbController;
-
   public BotService(GachiBot bot) {
     this.bot = bot;
     this.messagies = new Messagies(bot);
@@ -67,10 +64,15 @@ public class BotService {
 
   public void check_bad_word(String text, Message message) {
     int predCounter = bot.getUsers().get(message.getFrom().getId()).getCounter();
-    for (String str : bot.getBad_words()) {
-      if (text.contains(str)) {
-        addUserStat(str, message);
-        iterCounter(message.getFrom().getId());
+    List<String> words = List.of(text.split(" "));
+    System.out.println(words);
+
+    for (String str : bot.getBadWords()) {
+      for (String word: words){
+        if(word.contains(str) && !bot.getWhiteWords().contains(word)){
+          addUserStat(str, message);
+          iterCounter(message.getFrom().getId());
+        }
       }
     }
     if(predCounter != bot.getUsers().get(message.getFrom().getId()).getCounter())
@@ -149,5 +151,26 @@ public class BotService {
 
   public void saveUsers() throws IOException {
     dbController.saveUsers();
+  }
+
+  public boolean isCommand(String text){
+
+    return false;
+  }
+  public void addWhiteWord(Message message, String text) throws IOException {
+    List<String> words = List.of(text.split(" "));
+    for(String word: words){
+      if (!bot.getBadWords().contains(word)){
+        bot.getWhiteWords().add(word);
+      }else {
+        sendMessageWithReply("слово " + word + "уже в черном списке!", message);
+      }
+    }
+    JsonParser jsonParser = new JsonParser();
+
+    jsonParser.saveWhiteWords(bot.getWhiteWords());
+  }
+
+  public void addBadWord(Message message, String text) {
   }
 }
