@@ -18,7 +18,8 @@ public class BadWordsHandler {
     final private DbController dbController;
 
     final private Messagies messagies;
-    BadWordsHandler(GachiBot bot, UserHandler userHandler, DbController dbController, Messagies messagies){
+
+    BadWordsHandler(GachiBot bot, UserHandler userHandler, DbController dbController, Messagies messagies) {
         this.bot = bot;
         this.userHandler = userHandler;
         this.dbController = dbController;
@@ -26,30 +27,50 @@ public class BadWordsHandler {
     }
 
     public void changeCounter(long id, int counter) {
-        bot.getUsers().get(id).setCounter(counter);
+        bot.getUserRepository().findById(id).ifPresent(
+                user -> {
+                    user.setCounter(counter);
+                    dbController.saveUser(user);
+                }
+        );
     }
 
     public void iterCounter(long id) {
-        bot.getUsers().get(id).setCounter(bot.getUsers().get(id).getCounter() + 1);
+        bot.getUserRepository().findById(id).ifPresent(
+                user -> {
+                    user.setCounter(user.getCounter() + 1);
+                    dbController.saveUser(user);
+                }
+        );
     }
+
     private void counterSwitcher(Message message) {
-        switch (bot.getUsers().get(message.getFrom().getId()).getCounter()) {
-            case 0, 1, 2 -> messagies.sendMessageWithReply("🤡", message);
-            case 3 -> {
-                iterCounter(message.getFrom().getId());
-                messagies.sendSticker(bot.getConfig().getStickers().get("billy"), message);
-                messagies.sendMessage("За такие слова я тебя сейчас в бан кину", message);
-            }
-            default -> {
-                changeCounter(message.getFrom().getId(), 0);
-                userHandler.restrictUser(message.getChatId().toString(), message.getFrom().getId());
-                messagies.sendMessageWithReply("Ну ты дописался, посиди в бане минутку", message);
-            }
-        }
+        bot.getUserRepository().findById(message.getFrom().getId()).ifPresent(
+                user -> {
+                    switch (user.getCounter()) {
+                        case 0, 1, 2 -> messagies.sendMessageWithReply("🤡", message);
+                        case 3 -> {
+                            iterCounter(message.getFrom().getId());
+                            messagies.sendSticker(bot.getConfig().getStickers().get("billy"), message);
+                            messagies.sendMessage("За такие слова я тебя сейчас в бан кину", message);
+                        }
+                        default -> {
+                            changeCounter(message.getFrom().getId(), 0);
+                            userHandler.restrictUser(message.getChatId().toString(), message.getFrom().getId());
+                            messagies.sendMessageWithReply("Ну ты дописался, посиди в бане минутку", message);
+                        }
+                    }
+                }
+        );
     }
 
     void check_bad_word(String text, Message message) {
-        int predCounter = bot.getUsers().get(message.getFrom().getId()).getCounter();
+        final int[] predCounter = {0};
+
+        bot.getUserRepository().findById(message.getFrom().getId()).ifPresent(
+                user -> predCounter[0] = user.getCounter()
+        );
+
         List<String> words = List.of(text.split(" "));
         List<String> badWords = StreamSupport.stream(bot.getBadWordRepository()
                         .findAll()
@@ -63,9 +84,13 @@ public class BadWordsHandler {
                 }
             }
         }
-        if (predCounter != bot.getUsers().get(message.getFrom().getId()).getCounter()) {
-            counterSwitcher(message);
-        }
+        bot.getUserRepository().findById(message.getFrom().getId()).ifPresent(
+                user -> {
+                    if (predCounter[0] != user.getCounter()) {
+                        counterSwitcher(message);
+                    }
+                }
+        );
     }
 
 

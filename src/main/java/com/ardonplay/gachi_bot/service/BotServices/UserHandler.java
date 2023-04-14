@@ -9,7 +9,7 @@ import org.telegram.telegrambots.meta.api.objects.ChatPermissions;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.io.IOException;
+
 import java.time.Duration;
 import java.util.LinkedList;
 import java.util.Objects;
@@ -18,9 +18,14 @@ import java.util.Optional;
 @Component
 public class UserHandler {
     private final GachiBot bot;
-    UserHandler(GachiBot bot){
+
+    private final DbController dbController;
+
+    UserHandler(GachiBot bot, DbController dbController) {
         this.bot = bot;
+        this.dbController = dbController;
     }
+
     void restrictUser(String chatId, long userId) {
         ChatPermissions chatPermissions = new ChatPermissions();
         chatPermissions.setCanSendMessages(false);
@@ -43,43 +48,40 @@ public class UserHandler {
 
     void addUserStat(String word, Message message) {
 
-        User user = bot.getUsers().get(message.getFrom().getId());
-        try {
-            if (user.getMats() != null) {
-                Optional<Mat> mat = user.getMats().stream()
-                        .filter(mater -> Objects.equals(mater.getWord(), word)).findAny();
+        Optional<User> optionalUser = bot.getUserRepository().findById(message.getFrom().getId());
+        optionalUser.ifPresent(user -> {
+            try {
+                if (user.getMats() != null) {
+                    Optional<Mat> mat = user.getMats().stream()
+                            .filter(mater -> Objects.equals(mater.getWord(), word)).findAny();
 
-                mat.ifPresentOrElse(value -> value.setCount(value.getCount() + 1), () -> {
-                    Mat matershina = new Mat();
-                    matershina.setCount(1);
-                    matershina.setWord(word);
-                    user.getMats().add(matershina);
+                    mat.ifPresentOrElse(value -> value.setCount(value.getCount() + 1), () -> {
+                        Mat matershina = new Mat();
+                        matershina.setCount(1);
+                        matershina.setWord(word);
+                        user.getMats().add(matershina);
 
-                });
-                bot.getBotService().saveUser(user);
-            } else {
-                user.setMats(new LinkedList<>());
+                    });
+                    bot.getBotService().saveUser(user);
+                } else {
+                    user.setMats(new LinkedList<>());
+                }
+            } catch (NullPointerException e) {
+                e.printStackTrace();
             }
-        } catch (NullPointerException e) {
-            e.printStackTrace();
-        }
+        });
     }
 
-    void addUser(Message message){
+    void addUser(Message message) {
 
-        if (!bot.getUsers().containsKey(message.getFrom().getId())) {
-            if (bot.getUserRepository().findById(message.getFrom().getId()).isEmpty()) {
-                var userId = message.getFrom().getId();
-                int counter = 0;
-                com.ardonplay.gachi_bot.model.User user = new com.ardonplay.gachi_bot
-                        .model.User();
-                user.setUserID(userId);
-                user.setCounter(counter);
+        if (bot.getUserRepository().existsById(message.getFrom().getId())) {
+            var userId = message.getFrom().getId();
+            int counter = 0;
+            User user = new User();
+            user.setUserID(userId);
+            user.setCounter(counter);
 
-                bot.getUsers().put(userId, user);
-
-                bot.getUserRepository().save(user);
-            }
+            dbController.saveUser(user);
         }
     }
 }

@@ -19,24 +19,6 @@ public class DbController {
         this.bot = bot;
     }
 
-    void saveUsers() {
-        List<User> userList = bot.getUsers().values().stream().toList();
-
-        userList.forEach(user -> {
-            if (user.getMats() != null) {
-                user.getMats().forEach(mat -> mat.setUser(user));
-            }
-        });
-
-        if (!userList.equals(bot.getUserRepository().findAll())) {
-            try {
-                bot.getUserRepository().saveAll(userList);
-            } catch (DataIntegrityViolationException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
     void saveUser(User user) {
         if (user.getMats() != null) {
             user.getMats().forEach(mat -> mat.setUser(user));

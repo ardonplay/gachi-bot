@@ -42,8 +42,6 @@ public class GachiBot extends TelegramLongPollingBot {
     private final BotConfig config;
     private final BotService botService;
 
-    private Map<Long, User> users;
-
 
     @Autowired
     public GachiBot(UserRepository userRepository, MatRepository matRepository,
@@ -55,24 +53,6 @@ public class GachiBot extends TelegramLongPollingBot {
         this.whiteWordRepository = whiteWordRepository;
         this.config = config;
         this.botService = new BotService(this);
-        this.users = new LinkedHashMap<>();
-        for (User user : userRepository.findAll()) {
-            this.users.put(user.getUserID(), user);
-        }
-
-        Timer timer = new Timer();
-        TimerTask task = new TimerTask() {
-            @Override
-            public void run() {
-                try {
-                    botService.saveUsers();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        };
-
-        timer.schedule(task, 0L, 300000L);
     }
 
     @Override

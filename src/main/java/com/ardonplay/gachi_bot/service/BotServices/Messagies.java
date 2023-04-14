@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendAnimation;
@@ -14,7 +15,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendSticker;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.stickers.Sticker;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 @Component
@@ -22,11 +22,9 @@ public class Messagies {
 
     final private GachiBot bot;
 
-    final private DbController dbController;
 
     public Messagies(GachiBot bot) {
         this.bot = bot;
-        this.dbController = new DbController(bot);
     }
 
     public void sendMessageWithReply(String text, Message message) {
@@ -56,7 +54,7 @@ public class Messagies {
         }
     }
 
-    public void sendSticker(String stickerPath, Message message){
+    public void sendSticker(String stickerPath, Message message) {
         String chatId = message.getChatId().toString();
         SendSticker sendSticker = new SendSticker(chatId, new InputFile(stickerPath));
 
@@ -83,7 +81,7 @@ public class Messagies {
         try {
             bot.execute(sendAnimation);
         } catch (TelegramApiException e) {
-           e.printStackTrace();
+            e.printStackTrace();
         }
     }
 
@@ -109,15 +107,16 @@ public class Messagies {
     }
 
     public void sendStat(Message message) {
-        User user = bot.getUsers().get(message.getFrom().getId());
-        if (user.getMats() == null || user.getMats().size() == 0){
-            sendMessageWithReply("Ого, а вы даже не матерились, пока что)", message);
-        }
-        else {
-            List<String> stat = bot.getUsers().get(message.getFrom().getId()).getMats().stream()
-                .map(mat -> mat.getWord() + "=" + mat.getCount()).toList();
-
-            stringLimiter(stat).forEach(s -> sendMessageWithReply(s, message));
-        }
+        Optional<User> user = bot.getUserRepository().findById(message.getFrom().getId());
+        user.ifPresent(person -> {
+                    if (person.getMats() == null || person.getMats().size() == 0) {
+                        sendMessageWithReply("Ого, а вы даже не матерились, пока что)", message);
+                    } else {
+                        List<String> stat = person.getMats().stream()
+                                .map(mat -> mat.getWord() + "=" + mat.getCount()).toList();
+                        stringLimiter(stat).forEach(s -> sendMessageWithReply(s, message));
+                    }
+                }
+        );
     }
 }

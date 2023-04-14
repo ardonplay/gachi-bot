@@ -37,7 +37,7 @@ public class BotService {
         this.bot = bot;
         this.messagies = new Messagies(bot);
         this.dbController = new DbController(bot);
-        this.userHandler = new UserHandler(bot);
+        this.userHandler = new UserHandler(bot, dbController);
         this.badWordsHandler = new BadWordsHandler(bot, userHandler, dbController, messagies);
     }
 
@@ -86,10 +86,6 @@ public class BotService {
 
     public void addUser(Message message) throws IOException {
         userHandler.addUser(message);
-    }
-
-    public void saveUsers() throws IOException {
-        dbController.saveUsers();
     }
 
     public void saveUser(User user) {
