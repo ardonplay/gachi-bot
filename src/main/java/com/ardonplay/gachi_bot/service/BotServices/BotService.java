@@ -1,24 +1,18 @@
 package com.ardonplay.gachi_bot.service.BotServices;
 
 import com.ardonplay.gachi_bot.model.BadWord;
-import com.ardonplay.gachi_bot.model.Mat;
 import com.ardonplay.gachi_bot.model.User;
 import com.ardonplay.gachi_bot.model.WhiteWord;
 import com.ardonplay.gachi_bot.service.GachiBot;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.*;
 
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.telegram.telegrambots.meta.api.methods.groupadministration.RestrictChatMember;
-import org.telegram.telegrambots.meta.api.objects.ChatPermissions;
+
 import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 @Component
 public class BotService {
@@ -98,21 +92,31 @@ public class BotService {
         for (String word : words) {
             if (!bot.getBadWordRepository().existsByWord(word) && !bot.getWhiteWordRepository()
                     .existsByWord(word)) {
-                bot.getWhiteWordRepository().save(new WhiteWord(word));
+                if(word.length() > 5) {
+                    bot.getWhiteWordRepository().save(new WhiteWord(word));
+                }
+                else {
+                    sendMessageWithReply("ты втираешь какую-то дичь", message);
+                }
             } else {
-                sendMessageWithReply("слово " + word + " уже в черном списке!", message);
+                sendMessageWithReply("слово " + word + " уже в списке!", message);
             }
         }
     }
 
     public void addBadWord(Message message, String text) {
-        List<String> words = Stream.of(text.split(" ")).filter(word -> word.toCharArray()[0] != '/' ).toList();
+        List<String> words = Stream.of(text.split("\s")).toList();
         for (String word : words) {
             if (!bot.getBadWordRepository().existsByWord(word) && !bot.getWhiteWordRepository()
                     .existsByWord(word)) {
-                bot.getBadWordRepository().save(new BadWord(word));
+                if(word.length() > 5) {
+                    bot.getBadWordRepository().save(new BadWord(word));
+                }
+                else {
+                    sendMessageWithReply("ты втираешь какую-то дичь", message);
+                }
             } else {
-                sendMessageWithReply("слово " + word + " уже в белом списке!", message);
+                sendMessageWithReply("слово " + word + " уже в списке!", message);
             }
         }
     }

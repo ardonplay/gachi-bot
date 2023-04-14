@@ -88,7 +88,7 @@ public class GachiBot extends TelegramLongPollingBot {
                             throw new RuntimeException(e);
                         }
                     }
-                    case "/add_bad_word" -> botService.addBadWord(message, text);
+                    case "/addbadword" -> botService.addBadWord(message, text);
                     case "/rocket" -> botService.sendSticker(config.getStickers().get("rocket"), message);
                 }
             }

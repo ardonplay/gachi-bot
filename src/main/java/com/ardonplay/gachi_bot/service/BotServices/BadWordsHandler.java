@@ -17,6 +17,7 @@ public class BadWordsHandler {
 
     final private DbController dbController;
 
+
     final private Messagies messagies;
 
     BadWordsHandler(GachiBot bot, UserHandler userHandler, DbController dbController, Messagies messagies) {
@@ -72,10 +73,7 @@ public class BadWordsHandler {
         );
 
         List<String> words = List.of(text.split(" "));
-        List<String> badWords = StreamSupport.stream(bot.getBadWordRepository()
-                        .findAll()
-                        .spliterator(), false)
-                .map(BadWord::getWord).toList();
+        List<String> badWords = bot.getBadWordRepository().findAll().stream().map(BadWord::getWord).toList();
         for (String str : badWords) {
             for (String word : words) {
                 if (word.contains(str) && !bot.getWhiteWordRepository().existsByWord(word)) {
