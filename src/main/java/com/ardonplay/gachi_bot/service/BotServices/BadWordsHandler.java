@@ -78,7 +78,7 @@ public class BadWordsHandler {
                 .map(BadWord::getWord).toList();
         for (String str : badWords) {
             for (String word : words) {
-                if (word.contains(str) && !bot.getWhiteWordRepository().existsByWord(str)) {
+                if (word.contains(str) && !bot.getWhiteWordRepository().existsByWord(word)) {
                     iterCounter(message.getFrom().getId());
                     userHandler.addUserStat(str, message);
                 }

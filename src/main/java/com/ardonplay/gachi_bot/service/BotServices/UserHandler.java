@@ -74,7 +74,7 @@ public class UserHandler {
 
     void addUser(Message message) {
 
-        if (bot.getUserRepository().existsById(message.getFrom().getId())) {
+        if (!bot.getUserRepository().existsById(message.getFrom().getId())) {
             var userId = message.getFrom().getId();
             int counter = 0;
             User user = new User();
