@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -93,7 +94,7 @@ public class BotService {
     }
 
     public void addWhiteWord(Message message, String text) throws IOException {
-        List<String> words = List.of(text.split(" "));
+        List<String> words = Stream.of(text.split(" ")).filter(word -> word.toCharArray()[0] != '/' ).toList();
         for (String word : words) {
             if (!bot.getBadWordRepository().existsByWord(word) && !bot.getWhiteWordRepository()
                     .existsByWord(word)) {
@@ -105,6 +106,14 @@ public class BotService {
     }
 
     public void addBadWord(Message message, String text) {
-
+        List<String> words = Stream.of(text.split(" ")).filter(word -> word.toCharArray()[0] != '/' ).toList();
+        for (String word : words) {
+            if (!bot.getBadWordRepository().existsByWord(word) && !bot.getWhiteWordRepository()
+                    .existsByWord(word)) {
+                bot.getBadWordRepository().save(new BadWord(word));
+            } else {
+                sendMessageWithReply("слово " + word + " уже в белом списке!", message);
+            }
+        }
     }
 }
